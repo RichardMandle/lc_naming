@@ -200,6 +200,39 @@ def process_msn(string):
     
     smi = clean_smi_string(smi) # do a final cleanup
     return smi
+
+# Show fragments function(s)
+def show_fragments():
+    core_frags, end_frags = load_frags()
+    cores, core_labels = [], []
+    ends, end_labels = [], []
+    
+    for key in core_frags:
+        smi, _ = update_core_numbers(core_frags[key], count = 0)
+        smi = smi.replace('[X]', '[*]')
+        smi = smi.replace('[Y]', '[*]')
+        smi = smi.replace('()','')
+        
+        core_labels.append(key)
+        cores.append(Chem.MolFromSmiles(smi))
+        
+    core_img = Chem.Draw.MolsToGridImage(cores, 
+                                         legends=core_labels, 
+                                         maxMols = 100)
+        
+    for key in end_frags:
+        smi = "[*]" + end_frags[key]
+        smi = smi.replace('&','1')
+        end_labels.append(key)
+        ends.append(Chem.MolFromSmiles(smi))
+        
+    end_img = Chem.Draw.MolsToGridImage(ends, 
+                                         legends=end_labels, 
+                                         maxMols = 100)
+        
+    return cores, core_labels, core_img, ends, end_labels, end_img
+cores, core_labels, core_img, ends, end_labels, end_img = show_fragments()
+
 def main():
     parser = argparse.ArgumentParser(description="Convert structure names to SMILES strings.")
     parser.add_argument("input", help="Single structure name or path to .txt/.csv file with names")
