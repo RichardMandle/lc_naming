@@ -61,6 +61,12 @@ def format_ring_number(n: int) -> str:
     # make sure ring number obeys smiles syntax (<9, int; >=10, %int)
     return str(n) if n < 10 else f"%{n}"
 
+def clean_smi_string(string):
+    # function that will just clean a string:
+    string = string.replace('((','(').replace('))',')') # remove double brackets
+    string = string.replace('()','')
+    return string
+    
 def update_core_numbers(processed_frag: str, count: int = 0) -> tuple[str, int]:
     """
     replace each placeholder symbol (&, ^, $, etc.) in matched pairs
@@ -85,17 +91,21 @@ def reverse_smiles_preserve_brackets(smi: str) -> str:
     pattern = re.compile(r'[^\(\)]+(?:\([^\)]+\))*')
     
     tokens = pattern.findall(smi)
-    tokens.reverse()
+
+    if len(tokens) == 1: # no brackets, do it old way:
+        reversed_smi = ''.join(tokens)[::-1]
+        
+    else: 
+        tokens.reverse()
+        reversed_smi = ''.join(tokens)
     
-    return ''.join(tokens)
+    return reversed_smi
 
 def find_insertion_mode(processed_frag: str, patterns: list[str]) -> str:
     for pattern in patterns:
         if pattern in processed_frag:
             return pattern
     raise ValueError(f"No mode match found in: {processed_frag}")
-	
-
 
 def insert_string(string, insertion, index):
 	# simply stick a string (string) inside another string (insertion) at the specified place (index)
@@ -140,8 +150,7 @@ def process_core(core_string, core_frags, smi = '', count = 0):
     return(smi, count)
 
 def process_termini(term_string, end_frags, smi, mode = '[Y]', count = 0):
-	# here, we'll compare our terminal string with the list of end_fragments
-	# to see what it is
+	# here, we'll compare our terminal string with the list of end_fragments to see what it is
     processed_frag = end_frags[term_string].replace('&',str(count))
     if mode == '[X]':
         processed_frag = reverse_smiles_preserve_brackets(processed_frag)
@@ -158,6 +167,8 @@ def process_chain(chain_str: str, smi, mode = '[X]', count: int = 0) -> str:
         if b.isdigit():
             processed_frag += "C" * int(b)
         elif b.startswith("(") and b.endswith(")"):
+            if mode == '[X]':
+                b = b.replace('(','').replace(')','')
             processed_frag += b
         elif len(b) == 1 and b.isupper():
             processed_frag += b
@@ -175,17 +186,20 @@ def process_msn(string):
     parsed_string = parse_string(string)
     
     for n, ps in enumerate(parsed_string):
+        mode = "[X]" if n == 1 else "[Y]" # set the mode incase the chain ins't in the expected position.
         if n == 0:
             smi, count = process_core(ps, core_frags, smi='', count=0)
+     
         elif not has_digits(ps):
             # means its a terminus
-            mode = "[X]" if n == 1 else "[Y]"
             smi, count = process_termini(ps, end_frags, smi=smi, count=count, mode=mode)
+        
         else:
             # means its a chain
-            smi, count = process_chain(ps, smi=smi, count=count)
+            smi, count = process_chain(ps, smi=smi, mode = mode, count=count)
+    
+    smi = clean_smi_string(smi) # do a final cleanup
     return smi
-	
 def main():
     parser = argparse.ArgumentParser(description="Convert structure names to SMILES strings.")
     parser.add_argument("input", help="Single structure name or path to .txt/.csv file with names")
