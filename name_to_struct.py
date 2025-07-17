@@ -72,7 +72,7 @@ def update_core_numbers(processed_frag: str, count: int = 0) -> tuple[str, int]:
     replace each placeholder symbol (&, ^, $, etc.) in matched pairs
     with the same ring number.
     """
-    placeholders = ['&', '^', '$', '*', '~', '!', '@',]
+    placeholders = ['&', '^', '$', '£', '~', '!']
     for ph in placeholders:
         ph_locs = [m.start() for m in re.finditer(re.escape(ph), processed_frag)]
         if len(ph_locs) % 2 != 0:
@@ -104,6 +104,7 @@ def reverse_smiles_preserve_brackets(smi: str) -> str:
 def find_insertion_mode(processed_frag: str, patterns: list[str]) -> str:
     for pattern in patterns:
         if pattern in processed_frag:
+            print(f"pattern at {pattern}")
             return pattern
     raise ValueError(f"No mode match found in: {processed_frag}")
 
@@ -128,12 +129,13 @@ def process_core(core_string, core_frags, smi = '', count = 0):
         if chain_str is not None:
             mode = find_insertion_mode(processed_frag, [
                 'cc([Y])', 
-                '([Y])cc', 
-                '[Y]c', 
-                'c[Y]', 
-                'cc','n','c'
+                'c(F)c([Y])',
+                'c([Y])c(F)c(F)',
+                'c(F)c([Y])c(F)',
             ])
             lateral_chain, _ = process_chain(chain_str, smi='', mode=mode, count=0)
+            print(lateral_chain)
+            print(processed_frag)
             processed_frag = insert_string(processed_frag, f"{lateral_chain}", processed_frag.find(mode))
     
         processed_frag, count = update_core_numbers(processed_frag, count)
@@ -146,6 +148,10 @@ def process_core(core_string, core_frags, smi = '', count = 0):
         if '&' in core_frags[a]:
             count+=1 # increment ring number counter
         if '^' in core_frags[a]:
+            count+=1 # increment ring number counter
+        if '$' in core_frags[a]:
+            count+=1 # increment ring number counter
+        if '£' in core_frags[a]:
             count+=1 # increment ring number counter
     return(smi, count)
 
@@ -200,8 +206,8 @@ def process_msn(string):
     
     smi = clean_smi_string(smi) # do a final cleanup
     return smi
-
-# Show fragments function(s)
+    
+# show fragments function(s)
 def show_fragments():
     core_frags, end_frags = load_frags()
     cores, core_labels = [], []
@@ -232,7 +238,6 @@ def show_fragments():
         
     return cores, core_labels, core_img, ends, end_labels, end_img
 cores, core_labels, core_img, ends, end_labels, end_img = show_fragments()
-
 def main():
     parser = argparse.ArgumentParser(description="Convert structure names to SMILES strings.")
     parser.add_argument("input", help="Single structure name or path to .txt/.csv file with names")
